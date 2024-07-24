@@ -2,15 +2,17 @@ package core.backend.rename
 
 
 import chisel3._
-import chisel3.simulator.EphemeralSimulator._
+//import chisel3.simulator.EphemeralSimulator._
 import core.Parameter
 import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.must.Matchers
 
+import simulation.Simulator._
+
 class RenameTest extends AnyFreeSpec with Matchers {
   "RenameTest" in {
     implicit val p = Parameter()
-    simulate(new RenameTable()) { dut =>
+    val res = simulate(new RenameTable()) { dut =>
       val ref = Array.tabulate(p.NRArchRegs)(i => i)
 
       dut.io.write.foreach(w => w.valid.poke(false.B))
@@ -18,6 +20,7 @@ class RenameTest extends AnyFreeSpec with Matchers {
       dut.clock.step()
       dut.reset.poke(false.B)
       dut.clock.step()
+
       readAll()
       writeTable(0, 1, 33)
       writeTable(1, 1, 34)
@@ -65,6 +68,7 @@ class RenameTest extends AnyFreeSpec with Matchers {
         })
       }
     }
+
   }
 
 
