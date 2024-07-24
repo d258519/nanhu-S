@@ -1,4 +1,4 @@
-package npc
+package core
 
 import chisel3._
 import chisel3.util._
@@ -9,6 +9,7 @@ case class Parameter
   NRArchRegs: Int = 32,
   PCBits: Int = 32,
   RenameWidth: Int = 6,
+  CommitWidth: Int = 8,
   NRPhyRegs: Int = 192,
 )
 
@@ -18,6 +19,7 @@ trait HasCoreParameter {
   val NRArchRegs = p.NRArchRegs
   val PCBits = p.PCBits
   val RenameWidth = p.RenameWidth
+  val CommitWidth = p.CommitWidth
   val NRPhyRegs = p.NRPhyRegs
 
 

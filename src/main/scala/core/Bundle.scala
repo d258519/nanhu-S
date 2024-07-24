@@ -1,6 +1,7 @@
-package npc
+package core
 
 import chisel3._
+import chisel3.util._
 
 
 object SrcType extends ChiselEnum {
@@ -29,7 +30,6 @@ class MacroOP(implicit p: Parameter) extends InstrEntry {
   val ldstValid = Bool()
   val imm = UInt(IMMBits.W)
 
-
 }
 
 class MicroOP(implicit p: Parameter) extends MacroOP {
@@ -37,5 +37,9 @@ class MicroOP(implicit p: Parameter) extends MacroOP {
   val pdst = UInt(PhyRegIdxWidth.W)
   val dstOld = UInt(PhyRegIdxWidth.W)
   val pdstValid = Bool()
+}
 
+class Redirect(implicit p: Parameter) extends CoreBundle {
+  val pc = UInt(PCBits.W)
+  val op = new MicroOP()
 }
