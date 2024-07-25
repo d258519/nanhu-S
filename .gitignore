@@ -8,3 +8,5 @@ build
 
 project/*
 !project/build.properties
+.vscode
+.metals
