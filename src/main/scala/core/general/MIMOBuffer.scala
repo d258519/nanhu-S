@@ -1,6 +1,6 @@
 package core.general
 
-import chisel3._
+import chisel3.{Mux, _}
 import chisel3.util._
 import _root_.circt.stage.ChiselStage
 
@@ -13,13 +13,12 @@ class CirclePtr(val entries: Int) extends Bundle {
   val flag = Bool()
   val value = UInt(ptrWidth.W)
 
-
   def +(v: UInt): CirclePtr = {
-    val result = Wire(this)
+    val result = Wire(cloneType)
     if (isPow2(entries)) {
-      result := Cat(flag, value) + v
+      result := (Cat(flag, value) + v).asTypeOf(this)
     } else {
-      val valueNext = Cat("b0".U, value) + v
+      val valueNext = Cat(0.U(1.W), value) + v
       val reverseFlag = valueNext(ptrWidth)
       result.flag := flag ^ reverseFlag
       result.value := valueNext(ptrWidth - 1, 0)
@@ -43,30 +42,63 @@ class MIMOBuffer[T <: Data](gen: T, inWidth: Int, outWidth: Int, entries: Int) e
   require(isPow2(entries))
   val io = IO(new MIMOBufferIO[T](gen, inWidth, outWidth))
 
-  val bankNum = log2Up(inWidth).max(log2Up(outWidth))
-  val mem = SyncReadMem(entries / bankNum, gen) //Vec(bankNum,SyncReadMem(entries/bankNum, gen))
+  val bankBits = log2Up(inWidth.max(outWidth))
+  val bankNum = 1 << bankBits
+  val addrWidth = log2Up(entries)
+  val srams = Array.tabulate(bankNum)(i => SyncReadMem(entries / bankNum, gen))
   withReset(io.flush || reset.asBool) {
     val anyFire = io.in.fire || io.out.fire
 
-    val ptrZero = WireDefault(0.U.asTypeOf(CirclePtr(entries)))
-    val rptrNext, wptrNext = Wire(CirclePtr(entries))
+    val ptrZero = 0.U.asTypeOf(CirclePtr(entries))
+    val rptrNext = Wire(CirclePtr(entries))
+    val wptrNext = Wire(CirclePtr(entries))
     val rptr = RegEnable(rptrNext, ptrZero, io.out.fire)
     val wptr = RegEnable(wptrNext, ptrZero, io.in.fire)
 
     val outCount = PopCount(io.out.bits.map(_.valid))
     val inCount = PopCount(io.in.bits.map(_.valid))
 
-    rptrNext := rptr + outCount.asUInt
-    wptrNext := wptr + inCount.asUInt
+    rptrNext := rptr + outCount
+    wptrNext := wptr + inCount
 
-    //    val rptrMem = Mux(io.out.fire, rptrNext, rptr)
+    val rptrMem = Mux(io.out.fire, rptrNext, rptr)
+    val entryNumNext = wptr - rptrMem
 
-    //    val entryNumNext = Wire(wptr - rptrMem)
-    //    val entryNum = RegEnable(entryNumNext, ptrZero, anyFire)
-    //    val readyNext = entryNumNext <= (entries - inWidth).U
-    //    io.in.ready := RegEnable(readyNext, false.B, anyFire)
+    //sram read bank
+    val readBaseAddr = rptrMem.asUInt
+    val readOffset = readBaseAddr(bankBits - 1, 0)
+    val readAddr = VecInit.tabulate(bankNum)(bank => readBaseAddr(addrWidth - 1, bankBits) + (bank.U < readOffset))
+    val readIndex = VecInit.tabulate(bankNum)(bank => Mux(bank.U < readOffset, bankNum.U + bank.U - readOffset, bank.U - readOffset))
+    val readEnable = VecInit.tabulate(bankNum)(bank => readIndex(bank) < entryNumNext)
+    val readData = VecInit.tabulate(bankNum)(bank => srams(bank).read(readAddr(bank), readEnable(bank)))
 
+    //sram write bank
+    val writeReq = VecInit.tabulate(bankNum)(bank => if (bank < inWidth) io.in.bits(bank) else 0.U.asTypeOf(ValidIO(gen)))
+    val writeBaseAddr = wptr.asUInt
+    val writeOffset = writeBaseAddr(bankBits - 1, 0)
+    val writeAddr = VecInit.tabulate(bankNum)(bank => writeBaseAddr(addrWidth - 1, bankBits) + (bank.U < writeOffset))
+    val writeIndex = VecInit.tabulate(bankNum)(bank => Mux(bank.U < writeOffset, bankNum.U + bank.U - writeOffset, bank.U - writeOffset)(bankBits - 1, 0))
+    val writeEnable = VecInit.tabulate(bankNum)(bank => (writeIndex(bank) < inCount) && writeReq(writeIndex(bank)).valid && io.in.fire)
+    val writeData = VecInit.tabulate(bankNum)(bank => writeReq(writeIndex(bank)).bits)
+    writeEnable.zipWithIndex.foreach { case (wen, i) =>
+      when(wen) {
+        srams(i).write(writeAddr(i), writeData(i))
+      }
+    }
 
+    //generate out data
+    val outIndex = VecInit.tabulate(outWidth)(i => {
+      val idx = readOffset + i.U
+      RegEnable(Mux(idx < outWidth.U, idx, idx - outWidth.U), anyFire)
+    })
+    val readyNext = entryNumNext <= (entries - inWidth).U
+    val validNext = entryNumNext > 0.U
+    io.in.ready := RegEnable(readyNext, false.B, anyFire)
+    io.out.valid := RegEnable(validNext, false.B, anyFire)
+    io.out.bits.zipWithIndex.foreach { case (v, i) =>
+      v.bits := readData(outIndex(i))
+      v.valid := RegEnable(i.U < entryNumNext, false.B, anyFire)
+    }
   }
 }
 
