@@ -38,7 +38,7 @@ class MIMOBufferIO[T <: Data](gen: T, inWidth: Int, outWidth: Int) extends Bundl
   val flush = Input(Bool())
 }
 
-class MIMOBuffer[T <: Data](gen: T, inWidth: Int, outWidth: Int, entries: Int, enableCheck: Boolean = true) extends Module {
+class MIMOBuffer[T <: Data](gen: T, inWidth: Int, outWidth: Int, entries: Int, inCompact: Boolean = false, enableCheck: Boolean = true) extends Module {
   require(isPow2(entries))
   val io = IO(new MIMOBufferIO[T](gen, inWidth, outWidth))
 
@@ -73,7 +73,7 @@ class MIMOBuffer[T <: Data](gen: T, inWidth: Int, outWidth: Int, entries: Int, e
     val readEnable = VecInit.tabulate(bankNum)(bank => readIndex(bank) < readEntryNumNext)
     val readData = VecInit.tabulate(bankNum)(bank => srams(bank).read(readAddr(bank), readEnable(bank)))
     //sram write bank
-    val writeReq = VecInit.tabulate(bankNum)(bank => if (bank < inWidth) io.in.bits(bank) else 0.U.asTypeOf(ValidIO(gen)))
+    val writeReq = VecInit.tabulate(bankNum)(bank => if (bank < inWidth) if (inCompact) io.in.bits(PopCount(io.in.bits.map(_.valid).take(bank))) else io.in.bits(bank) else 0.U.asTypeOf(ValidIO(gen)))
     val writeBaseAddr = wptr.asUInt
     val writeOffset = writeBaseAddr(bankBits - 1, 0)
     val writeAddr = VecInit.tabulate(bankNum)(bank => writeBaseAddr(addrWidth - 1, bankBits) + (bank.U < writeOffset))
@@ -138,7 +138,6 @@ class MIMOBufferCheck[T <: Data](gen: T, inWidth: Int, outWidth: Int, entries: I
 
 object MIMOBuffer extends App {
   ChiselStage.emitSystemVerilogFile(new MIMOBuffer(UInt(128.W), 3, 7, 128))
-
 }
 
 
