@@ -38,7 +38,7 @@ class MIMOBufferIO[T <: Data](gen: T, inWidth: Int, outWidth: Int) extends Bundl
   val flush = Input(Bool())
 }
 
-class MIMOBuffer[T <: Data](gen: T, inWidth: Int, outWidth: Int, entries: Int) extends Module {
+class MIMOBuffer[T <: Data](gen: T, inWidth: Int, outWidth: Int, entries: Int, enableCheck: Boolean = true) extends Module {
   require(isPow2(entries))
   val io = IO(new MIMOBufferIO[T](gen, inWidth, outWidth))
 
@@ -62,16 +62,16 @@ class MIMOBuffer[T <: Data](gen: T, inWidth: Int, outWidth: Int, entries: Int) e
     wptrNext := wptr + inCount
 
     val rptrMem = Mux(io.out.fire, rptrNext, rptr)
-    val entryNumNext = wptr - rptrMem
-
+    val wptrMem = Mux(io.in.fire, wptrNext, wptr)
+    val readEntryNumNext = wptr - rptrMem
+    val writeEntryNumNext = wptrMem - rptrMem
     //sram read bank
     val readBaseAddr = rptrMem.asUInt
     val readOffset = readBaseAddr(bankBits - 1, 0)
     val readAddr = VecInit.tabulate(bankNum)(bank => readBaseAddr(addrWidth - 1, bankBits) + (bank.U < readOffset))
     val readIndex = VecInit.tabulate(bankNum)(bank => Mux(bank.U < readOffset, bankNum.U + bank.U - readOffset, bank.U - readOffset))
-    val readEnable = VecInit.tabulate(bankNum)(bank => readIndex(bank) < entryNumNext)
+    val readEnable = VecInit.tabulate(bankNum)(bank => readIndex(bank) < readEntryNumNext)
     val readData = VecInit.tabulate(bankNum)(bank => srams(bank).read(readAddr(bank), readEnable(bank)))
-
     //sram write bank
     val writeReq = VecInit.tabulate(bankNum)(bank => if (bank < inWidth) io.in.bits(bank) else 0.U.asTypeOf(ValidIO(gen)))
     val writeBaseAddr = wptr.asUInt
@@ -89,15 +89,49 @@ class MIMOBuffer[T <: Data](gen: T, inWidth: Int, outWidth: Int, entries: Int) e
     //generate out data
     val outIndex = VecInit.tabulate(outWidth)(i => {
       val idx = readOffset + i.U
-      RegEnable(Mux(idx < outWidth.U, idx, idx - outWidth.U), anyFire)
+      RegEnable(Mux(idx < bankNum.U, idx, idx - bankNum.U), anyFire)
     })
-    val readyNext = entryNumNext <= (entries - inWidth).U
-    val validNext = entryNumNext > 0.U
-    io.in.ready := RegEnable(readyNext, false.B, anyFire)
+    val readyNext = writeEntryNumNext <= (entries - inWidth).U
+    val validNext = readEntryNumNext > 0.U
+    io.in.ready := RegNext(readyNext, false.B)
     io.out.valid := RegEnable(validNext, false.B, anyFire)
     io.out.bits.zipWithIndex.foreach { case (v, i) =>
       v.bits := readData(outIndex(i))
-      v.valid := RegEnable(i.U < entryNumNext, false.B, anyFire)
+      v.valid := RegEnable(i.U < readEntryNumNext, false.B, anyFire)
+    }
+  }
+  if (enableCheck) {
+    Module(new MIMOBufferCheck(gen, inWidth, outWidth, entries)).io := io
+  }
+}
+
+class MIMOBufferCheck[T <: Data](gen: T, inWidth: Int, outWidth: Int, entries: Int) extends Module {
+  val io = IO(Input(new MIMOBufferIO[T](gen, inWidth, outWidth)))
+  val mem = Mem(entries, gen)
+  val addrWidth = log2Up(entries)
+
+  val refOut = VecInit.tabulate(outWidth)(_ => WireInit(0.U.asTypeOf(gen)))
+  dontTouch(refOut)
+  withReset(io.flush || reset.asBool) {
+    val rptr = RegInit(0.U(addrWidth.W))
+    val wptr = RegInit(0.U(addrWidth.W))
+
+    when(io.out.fire) {
+      rptr := rptr + PopCount(io.out.bits.map(_.valid))
+      io.out.bits.zipWithIndex.foreach { case (v, i) =>
+        when(v.valid) {
+          refOut(i) := mem.read(rptr + i.U)
+          assert(v.bits === refOut(i), s"out port $i error")
+        }
+      }
+    }
+    when(io.in.fire) {
+      wptr := wptr + PopCount(io.in.bits.map(_.valid))
+      io.in.bits.zipWithIndex.foreach { case (v, i) =>
+        when(v.valid) {
+          mem.write(wptr + i.U, v.bits)
+        }
+      }
     }
   }
 }

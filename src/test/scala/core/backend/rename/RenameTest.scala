@@ -2,11 +2,9 @@ package core.backend.rename
 
 
 import chisel3._
-//import chisel3.simulator.EphemeralSimulator._
 import core.Parameter
 import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.must.Matchers
-
 import simulation.Simulator._
 
 class RenameTest extends AnyFreeSpec with Matchers {
@@ -52,7 +50,7 @@ class RenameTest extends AnyFreeSpec with Matchers {
 
       def readAll(): Unit = {
         clearWrite()
-        for (i <- 0 until (p.NRArchRegs)) {
+        for (i <- 0 until p.NRArchRegs) {
           dut.io.read.flatten.foreach(r => r.addr.poke(i))
           checkStep()
         }
@@ -64,7 +62,7 @@ class RenameTest extends AnyFreeSpec with Matchers {
       def checkRead(): Unit = {
         dut.io.read.flatten.foreach(r => {
           val addr = r.addr.peekValue().asBigInt.toInt
-          r.data.expect(ref(addr), s"rat[${addr}] error")
+          r.data.expect(ref(addr), s"rat[$addr] error")
         })
       }
     }
