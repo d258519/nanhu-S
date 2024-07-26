@@ -2,7 +2,8 @@
 out
 target
 build
-
+.bsp
+.scala-build
 
 *.sv
 
