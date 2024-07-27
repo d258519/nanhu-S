@@ -11,6 +11,7 @@ case class Parameter
   RenameWidth: Int = 6,
   CommitWidth: Int = 8,
   NRPhyRegs: Int = 192,
+  RobSize : Int = 256,
 )
 
 trait HasCoreParameter {
@@ -21,7 +22,7 @@ trait HasCoreParameter {
   val RenameWidth = p.RenameWidth
   val CommitWidth = p.CommitWidth
   val NRPhyRegs = p.NRPhyRegs
-
+  val RobSize = p.RobSize
 
   val IMMBits = 32
   val ArchRegIdxWidth = log2Up(NRArchRegs)
