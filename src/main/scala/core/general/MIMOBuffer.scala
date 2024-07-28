@@ -88,8 +88,9 @@ class MIMOBuffer[T <: Data](gen: T, inWidth: Int, outWidth: Int, entries: Int, i
 
     //generate out data
     val outIndex = VecInit.tabulate(outWidth)(i => {
-      val idx = readOffset + i.U
-      RegEnable(Mux(idx < bankNum.U, idx, idx - bankNum.U), anyFire)
+      val idx = (readOffset + i.U)
+      val outIndexNext = Mux(idx < bankNum.U, idx, idx - bankNum.U)(bankBits - 1, 0)
+      RegEnable(outIndexNext, anyFire)
     })
     val readyNext = writeEntryNumNext <= (entries - inWidth).U
     val validNext = readEntryNumNext > 0.U

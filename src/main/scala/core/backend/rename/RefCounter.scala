@@ -15,7 +15,7 @@ class RefCounter(implicit p: Parameter) extends CoreModule {
   })
   val reqOH = io.allocate.map(r => UIntToOH(r.bits, NRPhyRegs))
   val freeOH = io.in.bits.map(f => UIntToOH(f.bits, NRPhyRegs))
-  val refCounter = RegInit(VecInit.tabulate(NRPhyRegs)(i => (if (i < NRArchRegs) 0 else 1).U(log2Up(RobSize + 1).W)))
+  val refCounter = RegInit(VecInit.tabulate(NRPhyRegs)(i => (if (i < NRArchRegs) 1 else 0).U(log2Up(RobSize + 1).W)))
   val refCounterInc = VecInit.tabulate(NRPhyRegs)(i => PopCount(io.allocate.zipWithIndex.map { case (r, port) => r.valid && reqOH(port)(i) }))
   val refCounterDec = VecInit.tabulate(NRPhyRegs)(i => Mux(io.in.valid, PopCount(io.in.bits.zipWithIndex.map { case (r, port) => r.valid && freeOH(port)(i) }), 0.U))
   val refCounterNext = VecInit.tabulate(NRPhyRegs)(i => refCounter(i) + refCounterInc(i) - refCounterDec(i))
