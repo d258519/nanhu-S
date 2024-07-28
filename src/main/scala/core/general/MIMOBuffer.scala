@@ -19,9 +19,9 @@ class CirclePtr(val entries: Int) extends Bundle {
       result := (Cat(flag, value) + v).asTypeOf(this)
     } else {
       val valueNext = Cat(0.U(1.W), value) + v
-      val reverseFlag = valueNext(ptrWidth)
+      val reverseFlag = valueNext >= entries.U
       result.flag := flag ^ reverseFlag
-      result.value := valueNext(ptrWidth - 1, 0)
+      result.value := Mux(reverseFlag, valueNext - entries.U, valueNext)
     }
     result
   }
