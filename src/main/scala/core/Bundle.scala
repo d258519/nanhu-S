@@ -5,7 +5,7 @@ import chisel3.util._
 
 
 object SrcType extends ChiselEnum {
-  val register, pc, imm = Value
+  val ZERO, REG, PC, IMM = Value
 }
 
 object FuType extends ChiselEnum {
@@ -31,6 +31,8 @@ class DecodeOp(implicit p: Parameter) extends CoreBundle {
   val ldstValid = Bool()
   val imm = UInt(IMMBits.W)
   val isMove = Bool()
+  val isLui = Bool()
+  val isLoad = Bool()
 }
 
 class MicroOp(implicit p: Parameter) extends CoreBundle {
