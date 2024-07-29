@@ -21,7 +21,8 @@ class InstrEntry(implicit p: Parameter) extends CoreBundle {
   val pc = UInt(PCBits.W)
 }
 
-class MacroOP(implicit p: Parameter) extends InstrEntry {
+class DecodeOp(implicit p: Parameter) extends CoreBundle {
+  val instr = new InstrEntry()
   val fuType = FuType()
   val fuOp = FuOP()
   val srcType = Vec(2, SrcType())
@@ -29,17 +30,18 @@ class MacroOP(implicit p: Parameter) extends InstrEntry {
   val ldst = UInt(ArchRegIdxWidth.W)
   val ldstValid = Bool()
   val imm = UInt(IMMBits.W)
-
+  val isMove = Bool()
 }
 
-class MicroOP(implicit p: Parameter) extends MacroOP {
+class MicroOp(implicit p: Parameter) extends CoreBundle {
+  val uop = new DecodeOp()
   val psrc = Vec(2, UInt(PhyRegIdxWidth.W))
   val pdst = UInt(PhyRegIdxWidth.W)
-  val dstOld = UInt(PhyRegIdxWidth.W)
+  val pdstOld = UInt(PhyRegIdxWidth.W)
   val pdstValid = Bool()
 }
 
 class Redirect(implicit p: Parameter) extends CoreBundle {
   val pc = UInt(PCBits.W)
-  val op = new MicroOP()
+  val op = new MicroOp()
 }
