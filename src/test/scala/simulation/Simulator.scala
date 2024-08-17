@@ -21,7 +21,7 @@ import scala.reflect.io.Directory
  * simulate(new MyChiselModule()) { module => ... }
  * }}}
  */
-object Simulator extends PeekPokeAPI {
+object Simulator extends MPeekPokeAPI {
   def simulate[T <: RawModule](
                                 module: => T
                               )(body: (T) => Unit
@@ -31,6 +31,8 @@ object Simulator extends PeekPokeAPI {
       module.controller.setTraceEnabled(true)
       body(module.wrapped)
     }).result
+
+
   }
 
   private class DefaultSimulator(val workspacePath: String) extends SingleBackendSimulator[verilator.Backend] {
