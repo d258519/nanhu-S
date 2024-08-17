@@ -25,9 +25,10 @@ class RefCounter(implicit p: Parameter) extends CoreModule {
   io.out.valid := RegNext(io.in.valid && reallyFree.asUInt.orR)
   io.out.bits.zipWithIndex.foreach { case (out, i) =>
     // ensure unique freeing of PHY registers per cycle
-    val isMultiFree = if (i == 0) false.B else VecInit(io.in.bits.take(i).map(in => in.valid && in.bits === out.bits)).asUInt.orR
-    out.valid := RegNext(reallyFree(i) && !isMultiFree)
-    out.bits := io.in.bits(i).bits
+    val isMultiFree = if (i == 0) false.B else VecInit(io.in.bits.take(i).map(in => in.valid && in.bits === io.in.bits(i).bits)).asUInt.orR
+    val validNext = reallyFree(i) && !isMultiFree
+    out.valid := RegNext(validNext)
+    out.bits := RegNext(io.in.bits(i).bits)
   }
 }
 

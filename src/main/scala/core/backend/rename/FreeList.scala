@@ -54,7 +54,6 @@ class FreeListCheck(size: Int)(implicit p: Parameter) extends CoreModule {
   val rptr = RegInit(0.U(ptrWidth.W))
   val wptr = RegInit((NRPhyRegs - NRArchRegs).U(ptrWidth.W))
   val refOut = VecInit.fill(RenameWidth)(0.U(PhyRegIdxWidth.W))
-  dontTouch(refOut)
   when(io.free.valid) {
     val wptrNext = wptr + PopCount(io.free.bits.map(_.valid))
     wptr := Mux(wptrNext < size.U, wptrNext, wptrNext - size.U)

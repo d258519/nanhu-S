@@ -33,7 +33,7 @@ class CirclePtr(val entries: Int) extends Bundle {
 }
 
 class MIMOBufferIO[T <: Data](gen: T, inWidth: Int, outWidth: Int) extends Bundle {
-  val in = Flipped(DecoupledIO(Vec(inWidth, Flipped(ValidIO(gen)))))
+  val in = Flipped(DecoupledIO(Vec(inWidth, ValidIO(gen))))
   val out = DecoupledIO(Vec(outWidth, ValidIO(gen)))
   val flush = Input(Bool())
 }
@@ -112,7 +112,6 @@ class MIMOBufferCheck[T <: Data](gen: T, inWidth: Int, outWidth: Int, entries: I
   val addrWidth = log2Up(entries)
 
   val refOut = VecInit.tabulate(outWidth)(_ => WireInit(0.U.asTypeOf(gen)))
-  dontTouch(refOut)
   withReset(io.flush || reset.asBool) {
     val rptr = RegInit(0.U(addrWidth.W))
     val wptr = RegInit(0.U(addrWidth.W))

@@ -14,7 +14,7 @@ class Rename(implicit p: Parameter) extends CoreModule {
     val commit = Flipped(new RobCommitIO)
     val redirect = Flipped(ValidIO(new Redirect))
     val intRatWrite = Flipped(Vec(RenameWidth, new RatWriteIO))
-    val intRatReadData = Input(Vec(RenameWidth, Vec(3, UInt(PhyRegIdxWidth.W))))
+    val intRatRead = Input(Vec(RenameWidth, Vec(3, new RatReadIO())))
   })
   val intFreeList = Module(new FreeList(NRPhyRegs))
   val intRefCounter = Module(new RefCounter)
@@ -28,17 +28,17 @@ class Rename(implicit p: Parameter) extends CoreModule {
     val isMove = uop.isMove
     mop.uop := uop
     mop.pdstValid := uop.ldstValid & !isMove
+    mop.pdst := intFreeList.io.allocate.rsp(i)
 
     io.intRatWrite(i).valid := io.in.fire && needAllocate
     io.intRatWrite(i).addr := uop.ldst
     io.intRatWrite(i).data := Mux(isMove, mop.psrc(0), mop.pdst)
     // rename table read bypass to micro op
-    (mop.psrc ++ Seq(mop.pdst)).zipWithIndex.foreach { case (phyReg, idx) =>
-      phyReg := io.intRatReadData(i)(idx)
+    (mop.psrc ++ Seq(mop.pdstOld)).zipWithIndex.foreach { case (phyReg, idx) =>
+      phyReg := io.intRatRead(i)(idx).data
       io.intRatWrite.take(i).foreach(v => when(v.valid && v.addr === uop.lsrc.concat(Seq(uop.ldst))(idx))(phyReg := v.data))
     }
 
-    mop.pdstOld := io.intRatReadData(i)(2)
     // lui to load fusion
     // generate last uop
     val (lastUop, lastUopValid) = if (i > 0) {
@@ -57,7 +57,7 @@ class Rename(implicit p: Parameter) extends CoreModule {
     //    lui x1, 0x123
     //    ld x0, 0x123456
     when(lastUopValid && lastUop.isLui && uop.isLoad && lastUop.ldst === uop.lsrc(0)) {
-      mop.uop.imm := Cat(lastUop.imm(IMMBits, 12), uop.imm(11, 0))
+      mop.uop.imm := Cat(lastUop.imm(IMMBits - 1, 12), uop.imm(11, 0))
       mop.uop.srcType(0) := SrcType.ZERO
     }
 
@@ -78,7 +78,7 @@ class Rename(implicit p: Parameter) extends CoreModule {
 
   intRefCounter.io.in.valid := io.commit.valid
   intFreeList.io.free := intRefCounter.io.out
-  intFreeList.io.allocate.req.valid := io.in.valid & outReady
+  intFreeList.io.allocate.req.valid := io.in.valid && outReady && !io.redirect.valid
   // when redirect signal valid, invalid rename request by pull down the io.in.ready signal.
   // the renamed mop should not be flushed directly, due to the rat and freelist have been modified
   val outValidSet = io.in.fire
