@@ -34,7 +34,7 @@ trait MPeekPokeAPI {
         module.controller.run(0)
       } else {
         val simulationPort = module.port(clock)
-        module.controller.run(0)
+        module.controller.run(1)
         simulationPort.tick(
           timestepsPerPhase = 1,
           maxCycles = cycles,

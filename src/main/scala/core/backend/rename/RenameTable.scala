@@ -26,7 +26,7 @@ class RenameTable(implicit p: Parameter) extends CoreModule {
   val tableNext = WireInit(table)
   table := tableNext
   io.read.flatten.foreach(r => r.data := RegNext(tableNext(r.addr)))
-  /* serial prior write logic. if timing too bad, replace it with parallel one hot write logic */
+  /* The write requests by ROB walking have priority. The older instructions have higher priority. */
   io.write.foreach(w => when(w.valid) {
     tableNext(w.addr) := w.data
   })

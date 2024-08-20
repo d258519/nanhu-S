@@ -40,25 +40,19 @@ class Rename(implicit p: Parameter) extends CoreModule {
     }
 
     // lui to load fusion
-    // generate last uop
-    val (lastUop, lastUopValid) = if (i > 0) {
-      (io.in.bits(i - 1).bits, io.in.bits(i - 1).valid)
-    } else {
-      val inOpCount = PopCount(io.in.bits.map(_.valid))
-      val lastOp = io.in.bits(inOpCount - 1.U)
-      (RegEnable(lastOp.bits, io.in.fire && inOpCount =/= 0.U),
-        RegEnable(lastOp.valid, false.B, io.in.fire && inOpCount =/= 0.U))
-    }
-    // replace imm and modify srcType(0）to zero
-    // before fusion
-    //    lui x1, 0x123
-    //    ld x1, 0x456
-    // after fusion
-    //    lui x1, 0x123
-    //    ld x0, 0x123456
-    when(lastUopValid && lastUop.isLui && uop.isLoad && lastUop.ldst === uop.lsrc(0)) {
-      mop.uop.imm := Cat(lastUop.imm(IMMBits - 1, 12), uop.imm(11, 0))
-      mop.uop.srcType(0) := SrcType.ZERO
+    if (i > 0) {
+      val (lastUop, lastUopValid) = (io.in.bits(i - 1).bits, io.in.bits(i - 1).valid)
+      // replace imm and modify srcType(0）to zero
+      // before fusion
+      //    lui x1, 0x123
+      //    ld x2, x1, 0x456
+      // after fusion
+      //    lui x1, 0x123
+      //    ld x2, x0, 0x123456
+      when(lastUopValid && lastUop.isLui && uop.isLoad && lastUop.ldst === uop.lsrc(0)) {
+        mop.uop.imm := Cat(lastUop.imm(IMMBits - 1, 12), uop.imm(11, 0))
+        mop.uop.srcType(0) := SrcType.ZERO
+      }
     }
 
     intFreeList.io.allocate.req.bits(i) := needAllocate && !isMove
