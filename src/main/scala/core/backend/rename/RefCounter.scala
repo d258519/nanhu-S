@@ -5,6 +5,8 @@ import circt.stage.ChiselStage
 import chisel3.util._
 import core._
 import core.general._
+import chisel3.util.circt.dpi._
+import utils.AdditionalResource
 
 
 class RefCounter(implicit p: Parameter) extends CoreModule {
@@ -30,6 +32,8 @@ class RefCounter(implicit p: Parameter) extends CoreModule {
     out.valid := RegNext(validNext)
     out.bits := RegNext(io.in.bits(i).bits)
   }
+  AdditionalResource("/hello.cpp")
+  RawClockedVoidFunctionCall("hello")(clock, true.B)
 }
 
 object RefCounter extends App {

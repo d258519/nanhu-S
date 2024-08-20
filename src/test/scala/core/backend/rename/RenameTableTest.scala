@@ -5,7 +5,7 @@ import chisel3._
 import core.Parameter
 import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.must.Matchers
-import simulation.Simulator._
+import simulation.MSimulator._
 
 class RenameTableTest extends AnyFreeSpec with Matchers {
   "RenameTableTest" in {

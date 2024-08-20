@@ -21,7 +21,7 @@ import scala.reflect.io.Directory
  * simulate(new MyChiselModule()) { module => ... }
  * }}}
  */
-object Simulator extends MPeekPokeAPI {
+object MSimulator extends MPeekPokeAPI {
   def simulate[T <: RawModule](
                                 module: => T
                               )(body: (T) => Unit

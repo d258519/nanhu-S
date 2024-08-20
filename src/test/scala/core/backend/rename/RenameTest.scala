@@ -6,7 +6,7 @@ import core._
 import core.backend.rob.RobCommitIO
 import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.must.Matchers
-import simulation.Simulator._
+import simulation.MSimulator._
 import _root_.circt.stage.ChiselStage
 
 import scala.util.Random
@@ -21,8 +21,6 @@ class RenameWrapper(implicit p: Parameter) extends CoreModule {
   })
   val rename = Module(new Rename)
   val rat = Module(new RenameTable)
-
-
   for (i <- 0 until RenameWidth.max(CommitWidth)) {
     if (i < RenameWidth) {
       rat.io.write(i) := rename.io.intRatWrite(i)

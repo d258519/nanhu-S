@@ -17,7 +17,7 @@ object core extends SbtModule { m =>
     "-Xcheckinit",
   )
   override def ivyDeps = Agg(
-    ivy"org.chipsalliance::chisel:6.5.0",
+    ivy"org.chipsalliance::chisel:7.0.0-M2",
   )
   override def scalacPluginIvyDeps = Agg(
     ivy"org.chipsalliance:::chisel-plugin:6.2.0",

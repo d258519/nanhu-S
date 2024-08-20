@@ -4,7 +4,7 @@ import chisel3._
 import chisel3.util.PopCount
 import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.must.Matchers
-import simulation.Simulator._
+import simulation.MSimulator._
 
 
 class MIMOBufferTest extends AnyFreeSpec with Matchers {
